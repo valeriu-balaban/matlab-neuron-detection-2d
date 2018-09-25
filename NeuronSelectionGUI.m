@@ -22,7 +22,7 @@ function varargout = NeuronSelectionGUI(varargin)
 
 % Edit the above text to modify the response to help NeuronSlectionGUI
 
-% Last Modified by GUIDE v2.5 19-Sep-2018 16:31:09
+% Last Modified by GUIDE v2.5 24-Sep-2018 20:25:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -557,3 +557,102 @@ function Table_CellSelectionCallback(hObject, eventdata, handles)
 % eventdata  structure with the following fields (see MATLAB.UI.CONTROL.TABLE)
 %	Indices: row and column indices of the cell(s) currently selecteds
 % handles    structure with handles and user data (see GUIDATA)
+
+
+
+function RadiusText_Callback(hObject, eventdata, handles)
+% hObject    handle to RadiusText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of RadiusText as text
+%        str2double(get(hObject,'String')) returns contents of RadiusText as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function RadiusText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to RadiusText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function EdgeWidthText_Callback(hObject, eventdata, handles)
+% hObject    handle to EdgeWidthText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of EdgeWidthText as text
+%        str2double(get(hObject,'String')) returns contents of EdgeWidthText as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function EdgeWidthText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EdgeWidthText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function ThetaThresholdText_Callback(hObject, eventdata, handles)
+% hObject    handle to ThetaThresholdText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of ThetaThresholdText as text
+%        str2double(get(hObject,'String')) returns contents of ThetaThresholdText as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function ThetaThresholdText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to ThetaThresholdText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in Detect.
+function Detect_Callback(hObject, eventdata, handles)
+% hObject    handle to Detect (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+k = round(handles.ImageIndexSlider.Value);
+I = handles.Image(:, :, k);
+RADIUS_LIST         = eval(handles.RadiusText.String);
+EDGE_WIDTH          = eval(handles.EdgeWidthText.String);
+THETA_THRESHOLD     = eval(handles.ThetaThresholdText.String);
+
+[position, radius] = FindNeurons(I , RADIUS_LIST, EDGE_WIDTH, THETA_THRESHOLD);
+
+handles.Table.Data          = num2cell([position, radius]);
+handles.Table.UserData{k}   = handles.Table.Data;
+
+% Save User Data
+NeuronLocations = handles.Table.UserData;
+[filepath,name, ~] = fileparts(handles.Open.UserData);
+save([fullfile(filepath, name), '.mat'], 'NeuronLocations');
+
+P = cell2mat(handles.Table.Data);
+
+% Update the colored images
+handles.ColoredImage{k} = displayNeurons(handles.Image(:, :, k), P, 0);
+
+ImageSlider_Callback(hObject, eventdata, handles);

@@ -32,6 +32,10 @@ DENSITY_LIST        = 0.25:0.15:1.0;
 
 %% Image preprocessing
 
+wh = waitbar(0, 'Preprocessing the image...', ...
+                'Name', 'Neuron Detection in Progress', ...
+                'WindowStyle', 'modal');
+
 % Step 1.
 % -----------------
 % Sharpen the image by assigning to each pixel the value of the local 
@@ -95,7 +99,8 @@ points = cell(1, numel(RADIUS_LIST) * numel(DENSITY_LIST));
 k = 1;
 
 for radius = RADIUS_LIST
-    fprintf('Finding neurons of radius %i...\n', radius);
+    waitbar(0.1 + 0.45 * k / (numel(RADIUS_LIST) * numel(DENSITY_LIST)), ...
+            wh, sprintf('Finding neurons of radius %i...', radius));
     
     I_d = conv2(I, single(fspecial('disk', radius)), 'same');
 
@@ -131,8 +136,9 @@ num_angles  = zeros(1, numel(RADIUS_LIST));
 
 
 for k = 1:size(points,1)
-    if mod(k, 100) == 0
-        fprintf('Evaluating neuron %i of %i...\n', k, size(points,1));
+    if mod(k, 79) == 0
+        waitbar(0.55 + 0.45 * k / size(points,1), wh,...
+                sprintf('Evaluating neuron %i of %i...', k, size(points,1)));
     end
     
     row = points(k, 2);
@@ -212,5 +218,7 @@ idx = ~isnan(position(:, 1));
 
 radius   = radius(idx);
 position = position(idx, :);
+
+close(wh);
 
 end
