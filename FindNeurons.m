@@ -27,7 +27,7 @@ AREA_THRESHOLD      = 500;
 EXTENT_THRESHOLD    = 0.4;
 
 % Detection
-DENSITY_LIST        = 0.4:0.05:1.0;
+DENSITY_LIST        = 0.3:0.05:1.0;
 R_SOMA_SCALE        = 0.6;
 SOMA_THRESHOLD      = 0.4;
 
