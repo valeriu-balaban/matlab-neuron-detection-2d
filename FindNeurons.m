@@ -21,14 +21,15 @@ function [position, radius] = FindNeurons(I, RADIUS_LIST, EDGE_WIDTH, THETA_THRE
 % the neurons for detection
 
 % Preprocessing
-BW_THRESHOLD        = 40;
+BW_THRESHOLD        = 45;
 INTENSITY_THRESHOLD = 190;
 AREA_THRESHOLD      = 500;
-EXTENT_THRESHOLD    = 0.3;
+EXTENT_THRESHOLD    = 0.4;
 
 % Detection
-DENSITY_LIST        = 0.25:0.15:1.0;
-
+DENSITY_LIST        = 0.3:0.05:1.0;
+R_SOMA_SCALE        = 0.6;
+SOMA_THRESHOLD      = 0.4;
 
 %% Image preprocessing
 
@@ -41,7 +42,7 @@ wh = waitbar(0, 'Preprocessing the image...', ...
 % Sharpen the image by assigning to each pixel the value of the local 
 % max or min, whichever is closer.
 
-H = strel('disk', 2).Neighborhood;
+H = strel('disk', 1).Neighborhood;
 
 I_max = ordfilt2(I, sum(H(:)), H);
 I_min = ordfilt2(I, 1, H);
@@ -74,13 +75,26 @@ I(ismember(L, idx)) = 0;
 % Remove small unconnected white patches on the image and slightly extend
 % everything else.
 
-I = bwpropfilt(I > BW_THRESHOLD, 'Area', [40, Inf]);
-I = imclose(I, strel('disk', 4));
+BW = I > BW_THRESHOLD;
+
+BW = imclose(BW, strel('disk', 2));
+
+BW = bwareaopen(BW, 50);
+
+% Step 4.
+% -----------------
+% fill holes in neurons which caused when removing dots
+
+BW_filled = imfill(BW, 'holes');
+fill_differ = BW_filled & ~BW;
+% preventing from fill very large holes
+fill = fill_differ & ~bwareaopen(fill_differ, 120);
+BW = BW | fill;
+
+I = I .* uint8(BW);
 
 % Free memory
 clearvars  I_max I_min I_idx L;
-
-
 %% Neuron Detection
 
 % Step 1.
@@ -102,7 +116,7 @@ for radius = RADIUS_LIST
     waitbar(0.1 + 0.45 * k / (numel(RADIUS_LIST) * numel(DENSITY_LIST)), ...
             wh, sprintf('Finding neurons of radius %i...', radius));
     
-    I_d = conv2(I, single(fspecial('disk', radius)), 'same');
+    I_d = conv2(BW, single(fspecial('disk', radius)), 'same');
 
     for T = DENSITY_LIST
         stats = regionprops(I_d > T, 'Centroid');
@@ -147,7 +161,7 @@ for k = 1:size(points,1)
     rows = max(1, row - R_MAX - EDGE_WIDTH) : min(size(I, 1), row + R_MAX + EDGE_WIDTH);
     cols = max(1, col - R_MAX - EDGE_WIDTH) : min(size(I, 2), col + R_MAX + EDGE_WIDTH);
     
-    Img = I(rows, cols);
+    Img = BW(rows, cols);
     
     % Recompute the distance and angle matrix when the dimensions changed
     if size(D, 1) ~= numel(rows) || size(D, 2) ~= numel(cols)
@@ -184,7 +198,23 @@ for k = 1:size(points,1)
             theta(k)  = ratio;
             radius(k) = RADIUS_LIST(i);
         end
-    end        
+    end
+    
+    % compute the bright ratio in soma area
+    radius_soma = radius(k) * R_SOMA_SCALE;
+    rows_soma = max(1, row - radius_soma) : min(size(I, 1), row + radius_soma);
+    cols_soma = max(1, col - radius_soma) : min(size(I, 2), col + radius_soma);
+    [mcs, mrs] = meshgrid(cols_soma, rows_soma);
+    % bright num in circle / num in circle
+    D = sqrt(single((mcs - col) .^ 2 + (mrs - row) .^ 2));
+    in_soma = D < radius_soma;
+    img_soma = BW(round(rows_soma), round(cols_soma));
+    soma_ratio = sum(sum(img_soma & in_soma)) / sum(in_soma(:));
+    
+    % if not meet the need of soma, theta = 0
+    if soma_ratio < SOMA_THRESHOLD
+         theta(k) = 0;
+    end
 end
 
 % Select only points above the threshold
@@ -220,5 +250,4 @@ radius   = radius(idx);
 position = position(idx, :);
 
 close(wh);
-
 end
