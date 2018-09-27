@@ -71,10 +71,9 @@ function RGB = displayNeurons(I, P, S)
 
 I_n = setupImage(I, P);
 
-RGB = zeros(size(I_n, 1), size(I_n, 2), 3, 'uint8');
-RGB(:, :, 1) = uint8(122 * bitget(I_n, 1) + I_n);
-RGB(:, :, 2) = uint8(153 * bitget(I_n, 1) + I_n);
-RGB(:, :, 3) = uint8(I_n);
+RGB = cat(3, uint8(122 * bitget(I_n, 1) + I_n), ...
+             uint8(122 * bitget(I_n, 1) + I_n), ...
+             uint8(I_n));
 
 % Color the selected region
 if S >= 1 && S <= size(P, 1)
@@ -430,15 +429,18 @@ if p(1) > ref(1) && p(1) <= ref(1) + ref(3) && p(2) > ref(2) && p(2) <= ref(2) +
     % Check if selecting a neuron
     P = cell2mat(handles.Table.Data);
 
-    % Compute the index of the closest point
+    % Find neuron indices covering the selected pixel
     if isempty(P)
-        idx = 0;
+        idx = [];
     else
-        [~, idx] = min(sqrt((P(:, 1) - c).^2 + (P(:, 2) - r).^2));
+        idx = abs(P(:, 1) - c) <= P(:, 3)  &  abs(P(:, 2) - r) <= P(:, 3);
     end
 
-    if idx && ((P(idx, 1) - c) <= P(idx, 3) || (P(idx, 2) - r) <= P(idx, 3))
-        handles.TableLabel.UserData = [k, idx];
+    if any(idx)
+        % Update selection to the closes point in the list
+        c_idx = find(idx);
+        [~, i] = min(sqrt((P(c_idx, 1) - c).^2 + (P(c_idx, 2) - r).^2));
+        handles.TableLabel.UserData = [k, c_idx(i)];
     else
         if ~isempty(handles.TableLabel.UserData) && handles.TableLabel.UserData(1) == k
             idx = handles.TableLabel.UserData(2);
@@ -448,8 +450,11 @@ if p(1) > ref(1) && p(1) <= ref(1) + ref(3) && p(2) > ref(2) && p(2) <= ref(2) +
             
             handles.TableLabel.UserData = [];
         else
+            IMG    = handles.Image(r-100:r+100, c-100:c+100, k);
+            p      = AssessNeuronLocation(IMG, 25, 75);
+            offset = [c - 100, r - 100, 0];
             handles.TableLabel.UserData = [];
-            handles.Table.Data = [handles.Table.Data; {c, r, 20}];
+            handles.Table.Data = [handles.Table.Data; num2cell(p + offset)];
             handles.Table.UserData{k} = handles.Table.Data; 
         end
     end
