@@ -31,6 +31,7 @@ DENSITY_LIST        = 0.3:0.05:1.0;
 R_SOMA_SCALE        = 0.6;
 SOMA_THRESHOLD      = 0.4;
 
+
 %% Image preprocessing
 
 wh = waitbar(0, 'Preprocessing the image...', ...
@@ -75,26 +76,23 @@ I(ismember(L, idx)) = 0;
 % Remove small unconnected white patches on the image and slightly extend
 % everything else.
 
-BW = I > BW_THRESHOLD;
 
-BW = imclose(BW, strel('disk', 2));
-
-BW = bwareaopen(BW, 50);
+I = imclose(I > BW_THRESHOLD, strel('disk', 2));
+I = bwareaopen(I, 50);
 
 % Step 4.
 % -----------------
 % fill holes in neurons which caused when removing dots
 
-BW_filled = imfill(BW, 'holes');
-fill_differ = BW_filled & ~BW;
-% preventing from fill very large holes
-fill = fill_differ & ~bwareaopen(fill_differ, 120);
-BW = BW | fill;
+I_f = imfill(I, 'holes') & ~I;
 
-I = I .* uint8(BW);
+% preventing from fill very large holes
+I = I | I_f & ~bwareaopen(I_f, 120);
 
 % Free memory
-clearvars  I_max I_min I_idx L;
+clearvars  I_max I_min I_idx L I_f;
+
+
 %% Neuron Detection
 
 % Step 1.
@@ -116,7 +114,7 @@ for radius = RADIUS_LIST
     waitbar(0.1 + 0.45 * k / (numel(RADIUS_LIST) * numel(DENSITY_LIST)), ...
             wh, sprintf('Finding neurons of radius %i...', radius));
     
-    I_d = conv2(BW, single(fspecial('disk', radius)), 'same');
+    I_d = conv2(I, single(fspecial('disk', radius)), 'same');
 
     for T = DENSITY_LIST
         stats = regionprops(I_d > T, 'Centroid');
@@ -161,7 +159,7 @@ for k = 1:size(points,1)
     rows = max(1, row - R_MAX - EDGE_WIDTH) : min(size(I, 1), row + R_MAX + EDGE_WIDTH);
     cols = max(1, col - R_MAX - EDGE_WIDTH) : min(size(I, 2), col + R_MAX + EDGE_WIDTH);
     
-    Img = BW(rows, cols);
+    Img = I(rows, cols);
     
     % Recompute the distance and angle matrix when the dimensions changed
     if size(D, 1) ~= numel(rows) || size(D, 2) ~= numel(cols)
@@ -208,7 +206,7 @@ for k = 1:size(points,1)
     % bright num in circle / num in circle
     D = sqrt(single((mcs - col) .^ 2 + (mrs - row) .^ 2));
     in_soma = D < radius_soma;
-    img_soma = BW(round(rows_soma), round(cols_soma));
+    img_soma = I(round(rows_soma), round(cols_soma));
     soma_ratio = sum(sum(img_soma & in_soma)) / sum(in_soma(:));
     
     % if not meet the need of soma, theta = 0

@@ -22,7 +22,7 @@ function varargout = NeuronSelectionGUI(varargin)
 
 % Edit the above text to modify the response to help NeuronSlectionGUI
 
-% Last Modified by GUIDE v2.5 24-Sep-2018 20:25:54
+% Last Modified by GUIDE v2.5 26-Sep-2018 22:40:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -440,7 +440,21 @@ if p(1) > ref(1) && p(1) <= ref(1) + ref(3) && p(2) > ref(2) && p(2) <= ref(2) +
         % Update selection to the closes point in the list
         c_idx = find(idx);
         [~, i] = min(sqrt((P(c_idx, 1) - c).^2 + (P(c_idx, 2) - r).^2));
-        handles.TableLabel.UserData = [k, c_idx(i)];
+        
+        % Update the position or select
+        if ~isempty(handles.TableLabel.UserData) && ...
+            handles.TableLabel.UserData(1) == k  && ...
+            handles.TableLabel.UserData(2) == c_idx(i)
+            
+            handles.Table.Data(c_idx(i), 1:2) = {c, r};
+            handles.Table.UserData{k} = handles.Table.Data;
+        else
+            handles.TableLabel.UserData = [k, c_idx(i)];
+
+            handles.Radius.Enable = 'on';
+            handles.Radius.Value = handles.Table.Data{idx, 3};
+        end
+        
     else
         if ~isempty(handles.TableLabel.UserData) && handles.TableLabel.UserData(1) == k
             idx = handles.TableLabel.UserData(2);
@@ -449,6 +463,7 @@ if p(1) > ref(1) && p(1) <= ref(1) + ref(3) && p(2) > ref(2) && p(2) <= ref(2) +
             handles.Table.UserData{k} = handles.Table.Data;
             
             handles.TableLabel.UserData = [];
+            handles.Radius.Enable = 'off';
         else
             IMG    = handles.Image(r-100:r+100, c-100:c+100, k);
             p      = AssessNeuronLocation(IMG, 25, 75);
@@ -523,6 +538,7 @@ if ~isempty(handles.TableLabel.UserData) && handles.TableLabel.UserData(1) ~= k
     P = cell2mat(handles.Table.Data);
     k_old = handles.TableLabel.UserData(1);
     handles.TableLabel.UserData = [];
+    handles.Radius.Enable = 'off';
     handles.ColoredImage{k_old} = displayNeurons(handles.Image(:, :, k_old), P, 0);
 end
 
@@ -661,3 +677,57 @@ P = cell2mat(handles.Table.Data);
 handles.ColoredImage{k} = displayNeurons(handles.Image(:, :, k), P, 0);
 
 ImageSlider_Callback(hObject, eventdata, handles);
+
+
+% --- Executes on slider movement.
+function Radius_Callback(hObject, eventdata, handles)
+% hObject    handle to Radius (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+    k = round(handles.ImageIndexSlider.Value);
+
+    if ~isempty(handles.TableLabel.UserData) && handles.TableLabel.UserData(1) == k
+        idx = handles.TableLabel.UserData(2);
+
+        handles.Table.Data{idx, 3} = round(handles.Radius.Value);
+        handles.Table.UserData{k} = handles.Table.Data;
+        
+        % Save User Data
+        NeuronLocations = handles.Table.UserData;
+        [filepath,name, ~] = fileparts(handles.Open.UserData);
+        save([fullfile(filepath, name), '.mat'], 'NeuronLocations');
+
+        P = cell2mat(handles.Table.Data);
+
+        % Update the colored images
+        if ~isempty(handles.TableLabel.UserData) && handles.TableLabel.UserData(1) == k
+            idx_selected = handles.TableLabel.UserData(2);
+        else
+            idx_selected = 0;
+        end
+        handles.ColoredImage{k} = displayNeurons(handles.Image(:, :, k), P, idx_selected);
+
+        ImageSlider_Callback(hObject, eventdata, handles);
+
+        % Update handles structure
+        guidata(hObject, handles)
+    else
+        handles.TableLabel.UserData = [];
+        handles.Radius.Enable = 'off';
+    end
+
+
+% --- Executes during object creation, after setting all properties.
+function Radius_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to Radius (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
