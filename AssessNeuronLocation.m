@@ -21,6 +21,7 @@ INTENSITY_THRESHOLD = 190;
 AREA_THRESHOLD      = 500;
 EXTENT_THRESHOLD    = 0.4;
 
+EDGE_WIDTH = 3;
 
 %% Image preprocessing
 
@@ -77,35 +78,59 @@ I = I | I_f & ~bwareaopen(I_f, 120);
 
 
 %% Neuron Detection
-
-% Step 1.
-% -----------------
-% Convolve the image with disk of different radius that match the neuron
-% sizes. This produces peaks at locations where the disk covers the most
-% number of white pixels. Select the highest peak as the location and the 
-% radius of the neuron
-
-
+% For each radius in the list, compute the ratio of pixels at the edge 
+% forming different angles with the center. Select the radius that give the
+% maximum ratio as the radius of the neuron
 
 RADIUS_LIST = R_MIN:R_MAX;
 
-value  = zeros(numel(RADIUS_LIST), 1);
-center = zeros(numel(RADIUS_LIST), 2);
+row = round(size(I, 1) / 2);
+col = round(size(I, 1) / 2);
 
-for k = 1:numel(RADIUS_LIST)
-    
-    I_d = conv2(I, single(fspecial('disk', RADIUS_LIST(k))), 'same');
+rows = max(1, row - R_MAX - EDGE_WIDTH) : min(size(I, 1), row + R_MAX + EDGE_WIDTH);
+cols = max(1, col - R_MAX - EDGE_WIDTH) : min(size(I, 2), col + R_MAX + EDGE_WIDTH);
 
-    [value(k), idx] = max(I_d(:));
-    [center(k, 2), center(k, 1)] = ind2sub(size(I_d), idx);
+Img = I(rows, cols);
+
+theta  = 0;
+radius = R_MIN;
+
+% Precompute the distance and angle matrix when the dimensions changed
+[mc, mr]    = meshgrid(cols - col, rows - row);
+D           = sqrt(single(mc .^ 2 + mr .^ 2));
+angles      = int16(atan2d(mc, mr));
+
+edge_pixels = zeros(size(D, 1), size(D, 2), numel(RADIUS_LIST), 'logical');
+
+for i = 1:numel(RADIUS_LIST)
+
+    % For each radius compute the maximum number of angles that can
+    % be found inside
+    inside_angles = zeros(1, 361, 'uint8');
+    inside_angles(angles(D <= RADIUS_LIST(i)) + 181) = 1; 
+    num_angles(i) = sum(inside_angles);
+
+    % Create the mask of edge pixels for each radius
+    edge_pixels(:, :, i) = (D <= RADIUS_LIST(i) + EDGE_WIDTH) & ...
+                           (D >= RADIUS_LIST(i) - EDGE_WIDTH);
 end
 
-% Use first peak as an indicator of neuron center and size
-[~, l] = findpeaks(value .* RADIUS_LIST');
+for i = 1:numel(RADIUS_LIST)
 
-p = [center(l(1), :), RADIUS_LIST(l(1))];
+    % Compute the ratio of angles found on the edge compared to number
+    % of posible angles for that radius
+    edge_angles = zeros(1, 361, 'uint8');
+    edge_angles(angles(edge_pixels(:, :, i) & Img) + 181) = 1;
+    ratio       = sum(edge_angles) / num_angles(i);
 
-disp(p)
+    % Save the radius with the maximum ratio
+    if ratio > theta
+        theta  = ratio;
+        radius = RADIUS_LIST(i);
+    end
+end
+
+p = [col, row, radius];
 
 end
 
