@@ -1,4 +1,4 @@
-function [A, AE, PATHS] = DijkstraNeuron(I, E, U, V, P, N, MAX_FILLS)
+function [A, AE, PATHS] = DijkstraNeuron(I, E, U, V, P, N, Q, MAX_FILLS)
 %DIJKSTRANEURON Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -61,6 +61,7 @@ for i = N
 
         % stop if all of the possible paths have larger gaps
         if v > MAX_FILLS
+            send(Q, i);
             break;
         end
         p = QUEUE(idx, 1:2);

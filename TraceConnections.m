@@ -124,27 +124,32 @@ A       = inf(N);
 AE      = inf(N);
 PATHS   = cell(size(P, 1));
 
+Q = parallel.pool.DataQueue;
+step = 1;
+h = waitbar(0, 'Tracing connections...');
+afterEach(Q, @nUpdateWaitBar);
+
+
 p = gcp();
 
 stepSize = idivide(uint32(N), p.NumWorkers, 'ceil');
 
 for idx = 1:p.NumWorkers
-  F(idx) = parfeval(@DijkstraNeuron, 3, I, E, U, V, P, (idx - 1) * stepSize + 1:min(N, idx * stepSize), MAX_FILLS);
+  F(idx) = parfeval(@DijkstraNeuron, 3, I, E, U, V, P, (idx - 1) * stepSize + 1:min(N, idx * stepSize), Q, MAX_FILLS);
 end
 
 for idx = 1:p.NumWorkers
   
     % fetchNext blocks until next results are available.
-  [completedIdx, AF, AEF, PATHSF] = fetchNext(F);
+  [~, AF, AEF, PATHSF] = fetchNext(F);
   
   IDX           = ~isinf(AF);
   A(IDX)        = AF(IDX);
   AE(IDX)       = AEF(IDX);
   PATHS(IDX)    = PATHSF(IDX);
-  
-  fprintf('Got result with index: %d.\n', completedIdx);
 end
 
+close(h);
 
 %% Show results
 M = zeros(size(I, 1), size(I, 2));
@@ -161,6 +166,13 @@ for i = 1:size(PATHS, 1)
 end
 
 imshow(cat(3, M, IMG, I))
+
+%% Waitbar
+
+    function nUpdateWaitBar(~)
+        waitbar(step/N, h, sprintf('Tracing connections of neuron %i of %i', step, N));
+        step = step + 1;
+    end
 
 end
 
