@@ -95,8 +95,10 @@ E      = zeros(m, n);
 U      = zeros(m, n);
 V      = zeros(m, n);
 
+h = waitbar(0, 'Finding ridges ...');
+
 for i = 1:m
-   for j = 1:n 
+   parfor j = 1:n 
         Hessian = [gxx(i,j) gxy(i,j); gyx(i,j) gyy(i,j)];
         [eigen_vector, eigen_value] = eig(Hessian, 'vector');
         
@@ -110,7 +112,11 @@ for i = 1:m
         U(i, j) = eigen_vector(1, idx);
         V(i, j) = eigen_vector(2, idx);
    end
+   
+   waitbar(i/m, h, sprintf('Finding ridges, line %i of %i', i, m));
 end
+
+close(h)
 
 % Normalize eigenvalues
 E = E / max(E(:));
