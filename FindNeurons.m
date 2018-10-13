@@ -1,4 +1,4 @@
-function [position, radius] = FindNeurons(I, RADIUS_LIST, EDGE_WIDTH, THETA_THRESHOLD)
+function [position, radius, I] = FindNeurons(I, RADIUS_LIST, EDGE_WIDTH, THETA_THRESHOLD)
 % FINDNEURONS Implements image processing techniques for extracting
 % neuron locations and sizes from gray images
 %
