@@ -2,8 +2,8 @@ function [A, AE, PATHS] = DijkstraNeuron(I, E, U, V, P, N, Q, MAX_FILLS)
 %DIJKSTRANEURON Summary of this function goes here
 %   Detailed explanation goes here
 
-A       = inf(size(P, 1));
-AE      = inf(size(P, 1));
+A       = inf(size(P, 1), 'single');
+AE      = inf(size(P, 1), 'single');
 PATHS   = cell(size(P, 1));
 
 [m, n]  = size(I);
@@ -25,12 +25,12 @@ DEST   = cell(size(P, 1));
 for i = N
     
     % Distance from source
-    C      = inf(m, n);
-    CE     = inf(m, n); % numbe of empty pixels in the path
+    C      = inf(m, n, 'single');
+    CE     = inf(m, n, 'single'); % numbe of empty pixels in the path
 
     % Column and Row coordinate of the previous node on the optimal path
-    C_prev = zeros(m, n);
-    R_prev = zeros(m, n); 
+    C_prev = zeros(m, n, 'uint16');
+    R_prev = zeros(m, n, 'uint16'); 
 
     % Source
     s_c = P(i, 2);
