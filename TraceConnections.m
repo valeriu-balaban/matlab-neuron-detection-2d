@@ -1,16 +1,16 @@
-function [A, AE, PATHS] = TraceConnections(I, P, MAX_FILLS)
+function [A, PATHS] = TraceConnections(I, P, MAX_FILLS)
 %TRACECONNECTIONS Summary of this function goes here
 %   Detailed explanation goes here
 
 
 A       = inf(size(P, 1));
-AE      = inf(size(P, 1));
 PATHS   = cell(size(P, 1));
 
 
 %% Parameters
 
 SIGMA = 1;          % variance of the convolution kernel
+GAMMA = 0.8;        % proportional weight of the eigenvalue when tracing
 
 % Transformation matrix for the eigenvalues
 T = [1, 1/3; 1/3, 1];
@@ -95,10 +95,8 @@ E      = zeros(m, n);
 U      = zeros(m, n);
 V      = zeros(m, n);
 
-h = waitbar(0, 'Finding ridges ...');
-
 for i = 1:m
-   parfor j = 1:n 
+   parfor j = 1:n
         Hessian = [gxx(i,j) gxy(i,j); gyx(i,j) gyy(i,j)];
         [eigen_vector, eigen_value] = eig(Hessian, 'vector');
         
@@ -113,52 +111,86 @@ for i = 1:m
         V(i, j) = eigen_vector(2, idx);
    end
    
-   waitbar(i/m, h, sprintf('Finding ridges, line %i of %i', i, m));
+   fprintf(1, 'Finding ridges, line %i of %i\n', i, m);
 end
-
-close(h)
 
 % Normalize eigenvalues
 E = E / max(E(:));
 
+IND = find(I);
+[ROWS, COLS] = ind2sub([m, n], IND);
+
+RESULTS = [ROWS, COLS, E(IND), U(IND), V(IND)];
+% Sort before saving to file, C++ reports the links for the sorted points
+P = sortrows(P, [1, 2]); 
+
+dlmwrite('data.txt', [size(RESULTS, 1), size(P, 1), m, n, MAX_FILLS, GAMMA], 'delimiter', ' ', 'precision', 10)
+dlmwrite('data.txt', RESULTS, '-append', 'delimiter', ' ', 'precision', 5)
+dlmwrite('data.txt', P, '-append', 'delimiter', ' ', 'precision', 5)
+
+
+% fid = fopen('neuron.bin', 'w');
+% fwrite(fid, [size(RESULTS, 1), size(P, 1), m, n], 'int16');
+% RESULTS(:, 3:end) = RESULTS(:, 3:end) * 10000;
+% fwrite(fid, int16(RESULTS), 'int16');
+% fwrite(fid, int16(P), 'int16');
 
 %% Dijkstra Shortest Path
 
 N = size(P, 1);
 
-A       = inf(N);
-AE      = inf(N);
-PATHS   = cell(size(P, 1));
+A       = zeros(N);
+PATHS   = cell(N);
 
-Q = parallel.pool.DataQueue;
-step = 1;
-h = waitbar(0, 'Tracing connections...');
-afterEach(Q, @nUpdateWaitBar);
+fprintf(1, 'Runnig the C++ code\n');
+!./a.out < data.txt > result.txt
+fprintf(1, 'Reading the results\n');
 
-
-p = gcp();
-
-stepSize = idivide(uint32(N), p.NumWorkers, 'ceil');
-
-for idx = 1:p.NumWorkers
-  F(idx) = parfeval(@DijkstraNeuron, 3, I, E, U, V, P, (idx - 1) * stepSize + 1:min(N, idx * stepSize), Q, MAX_FILLS);
+fid = fopen('result.txt', 'r');
+while ~feof(fid)
+    str = fgetl(fid);
+    C = textscan(str, '%u32');
+    path = reshape(C{1}, 2, []);
+    path = path';
+    
+    A(path(1, 1) + 1, path(1, 2) + 1) = 1;
+    A(path(1, 2) + 1, path(1, 1) + 1) = 1;
+    PATHS{path(1, 1) + 1, path(1, 2) + 1} = path(2:end, :);
+    PATHS{path(1, 2) + 1, path(1, 1) + 1} = path(2:end, :);
+    
 end
+fclose(fid);
 
-for idx = 1:p.NumWorkers
-  
-    % fetchNext blocks until next results are available.
-  [~, AF, AEF, PATHSF] = fetchNext(F);
-  
-  IDX           = ~isinf(AF);
-  A(IDX)        = AF(IDX);
-  AE(IDX)       = AEF(IDX);
-  PATHS(IDX)    = PATHSF(IDX);
-end
 
-close(h);
+% Q = parallel.pool.DataQueue;
+% step = 1;
+% h = waitbar(0, 'Tracing connections...');
+% afterEach(Q, @nUpdateWaitBar);
+% 
+% 
+% p = gcp();
+% 
+% stepSize = idivide(uint32(N), p.NumWorkers, 'ceil');
+% 
+% for idx = 1:p.NumWorkers
+%   F(idx) = parfeval(@DijkstraNeuron, 3, I, E, U, V, P, (idx - 1) * stepSize + 1:min(N, idx * stepSize), Q, MAX_FILLS);
+% end
+% 
+% for idx = 1:p.NumWorkers
+%   
+%     % fetchNext blocks until next results are available.
+%   [~, AF, AEF, PATHSF] = fetchNext(F);
+%   
+%   IDX           = ~isinf(AF);
+%   A(IDX)        = AF(IDX);
+%   AE(IDX)       = AEF(IDX);
+%   PATHS(IDX)    = PATHSF(IDX);
+% end
+% 
+% close(h);
 
 %% Show results
-M = zeros(size(I, 1), size(I, 2));
+M = zeros(size(I));
 
 for i = 1:size(PATHS, 1)
     for j = 1:size(PATHS, 2)
@@ -171,14 +203,8 @@ for i = 1:size(PATHS, 1)
     end
 end
 
+figure;
 imshow(cat(3, M, IMG, I))
-
-%% Waitbar
-
-    function nUpdateWaitBar(~)
-        waitbar(step/N, h, sprintf('Tracing connections of neuron %i of %i', step, N));
-        step = step + 1;
-    end
 
 end
 
