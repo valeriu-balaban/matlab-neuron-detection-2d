@@ -122,7 +122,7 @@ IND = find(I);
 
 RESULTS = [ROWS, COLS, E(IND), U(IND), V(IND)];
 % Sort before saving to file, C++ reports the links for the sorted points
-P = sortrows(P, [1, 2]); 
+P = round(sortrows(P, [1, 2])); 
 
 dlmwrite('data.txt', [size(RESULTS, 1), size(P, 1), m, n, MAX_FILLS, GAMMA], 'delimiter', ' ', 'precision', 10)
 dlmwrite('data.txt', RESULTS, '-append', 'delimiter', ' ', 'precision', 5)
