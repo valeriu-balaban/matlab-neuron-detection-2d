@@ -1,12 +1,15 @@
-load '~/Downloads/neurons-step1-result.mat'
-P = cell2mat(NeuronLocations{15});
+load 'neurons-step1-result.mat'
+
+image_index = 11;
+
+P = cell2mat(NeuronLocations{image_index});
 
 % Change coordinates from x, y to row, col
 TMP = P(:, 1);
 P(:, 1) = P(:, 2);
 P(:, 2) = TMP;
 
-I = imread('~/Downloads/neurons-step1-result.tif', 15);
+I = imread('neurons-step1-result.tif', image_index);
 
 [A, PATHS] = TraceConnections(I, P, 15);
 
