@@ -21,20 +21,6 @@ h = viscircles([neurons_3(:, 1), neurons_3(:, 2)], neurons_3(:, 3));
 
 NeuronLocations{index} = num2cell(neurons_3);
 save('neurons-step1-result.mat', 'NeuronLocations');
-%% remove parts over the line of p1 and p2
-function img = remove_parts(img, upordown, p1, p2)
-    % upordown: 0 for up and 1 for down
-    k = (p1(2) - p2(2)) / (p1(1) - p2(1));
-    b = p1(2) - k * p1(1);
-    [m, n] = size(img);
-    for i = 1:m
-        for j = 1:n
-            if (j * k + b) >= i && ~upordown || (j * k + b) < i && upordown
-                img(i, j) = 0;
-            end
-        end
-    end
-end
 
 %% remove points over the line of p1 and p2
 function points = remove_points(points, upordown, p1, p2)
