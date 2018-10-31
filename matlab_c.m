@@ -1,7 +1,7 @@
-load '~/Downloads/neurons-step1-result-9.mat'
-IMG_STR = '~/Downloads/neurons-step1-result.tif';
+load('~/Downloads/neurons-yunpeng.mat')
+IMG_STR = '~/Downloads/neurons-yunpeng.tif';
 
-image_index = 11;
+image_index = 1;
 
 P = cell2mat(NeuronLocations{image_index});
 
@@ -12,7 +12,7 @@ P(:, 2) = TMP;
 
 I = imread(IMG_STR, image_index);
 
-[A, PATHS] = TraceConnections(I, P, 15);
+[A, PATHS] = TraceConnections(I, P, 25);
 
 %% Add circles
 
